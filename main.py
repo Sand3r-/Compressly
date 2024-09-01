@@ -75,10 +75,6 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Slot, QProcess
 from PySide6.QtGui import QKeySequence
 
-class ListDragDropWidget(QWidget): ...
-
-log_ffmpeg = False
-
 # Source: https://stackoverflow.com/questions/7674790/bundling-data-files-with-pyinstaller-onefile/44352931#44352931
 def resourcePath(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -149,9 +145,10 @@ class FolderSelectionWidget(QWidget):
             self.outputFolder.setText(folder)
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, args):
         super().__init__()
 
+        self.args = args
         self.setWindowTitle("Compressly")
 
         pageLayout = QVBoxLayout()
@@ -248,7 +245,7 @@ class MainWindow(QMainWindow):
         stderr = bytes(data).decode("utf8")
 
         # Forward FFmpeg output
-        if log_ffmpeg:
+        if self.args.logging_ffmpeg:
             log.info(stderr)
 
         # Update progress bar
@@ -265,7 +262,7 @@ class MainWindow(QMainWindow):
         stdout = bytes(data).decode("utf8")
 
         # Forward output if any
-        if log_ffmpeg:
+        if self.args.logging_ffmpeg:
             log.info(stdout)
 
     def ffmpegFinished(self):
@@ -360,12 +357,12 @@ def process_cli_args() -> Tuple[argparse.ArgumentParser, List[str]]:
 
 if __name__ == "__main__":
     parsed_args, unparsed_args = process_cli_args()
-    log_ffmpeg = parsed_args.logging_ffmpeg
     if parsed_args.logging:
         logger.init()
     log.info("App started.")
     app = QApplication(unparsed_args)
     app.setStyle('fusion')
-    window = MainWindow()
+    window = MainWindow(parsed_args)
     window.show()
     app.exec()
+
