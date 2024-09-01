@@ -27,7 +27,6 @@
     This project is currently a work in progress, although even in its current
     state its quite usable.
     --- To-do log ---
-    TODO: Allow for deleting a selected file by pressing delete/backspace
     TODO: Extract ffmpeg-related code to ffmpeg.py and handle things there
     TODO: Clean-up the code, ensure consistent style
     TODO: Add type-annotations
@@ -46,13 +45,14 @@
     TODO: Figure out how to do stylesheets properly
     TODO: Learn how to and create Unit and Integration tests
     TODO: Create a CI for running tests and making sure linting was done
-    TODO: Learn how to use PyInstaller and package the app
     TODO: Automate packaging on CI
     TODO: Implement QML instead of traditional Qt
+
+    pyinstaller --name "Compressly" --noconsole main.py --add-binary "external/ffmpeg/ffmpeg.exe;external/ffmpeg/" --add-binary "external/ffmpeg/SvtAv1Enc.dll;external/ffmpeg/" --noconfirm
 """
 
 import logging as log
-import argparse, re, logger
+import argparse, re, logger, os, sys
 from pathlib import Path
 from typing import List, Tuple
 from PySide6.QtWidgets import (
@@ -70,12 +70,20 @@ from PySide6.QtWidgets import (
     QButtonGroup,
     QLineEdit,
     QProgressBar,
+    QAbstractItemView
 )
 from PySide6.QtCore import Qt, Slot, QProcess
+from PySide6.QtGui import QKeySequence
 
 class ListDragDropWidget(QWidget): ...
 
 log_ffmpeg = False
+
+# Source: https://stackoverflow.com/questions/7674790/bundling-data-files-with-pyinstaller-onefile/44352931#44352931
+def resourcePath(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_path, relative_path)
 
 class FolderSelectionWidget(QWidget):
     def __init__(self):
@@ -168,6 +176,7 @@ class MainWindow(QMainWindow):
 
         button = QPushButton("Add")
         button.pressed.connect(self.browseFiles)
+        button.setShortcut(QKeySequence("A"))
         buttonLayout.addWidget(button)
 
         self.dialog = QFileDialog(self)
@@ -178,14 +187,11 @@ class MainWindow(QMainWindow):
 
         button = QPushButton("Remove")
         button.pressed.connect(self.remove)
-        buttonLayout.addWidget(button)
-
-        button = QPushButton("Remove all")
-        button.pressed.connect(self.removeAll)
+        button.setShortcut(QKeySequence("Delete"))
         buttonLayout.addWidget(button)
 
         self.ffmpeg = QProcess()
-        self.ffmpeg.setProgram("external/ffmpeg/ffmpeg.exe")
+        self.ffmpeg.setProgram(resourcePath("external/ffmpeg/ffmpeg.exe"))
         self.ffmpeg.finished.connect(self.ffmpegFinished)
         self.ffmpeg.readyReadStandardOutput.connect(self.ffmpegStdOut)
         self.ffmpeg.readyReadStandardError.connect(self.ffmpegStdErr)
@@ -193,6 +199,7 @@ class MainWindow(QMainWindow):
 
         button = QPushButton("Convert")
         button.pressed.connect(self.startProcesses)
+        button.setShortcut(QKeySequence("Return"))
         buttonLayout.addWidget(button)
 
         widget = QWidget()
@@ -212,9 +219,6 @@ class MainWindow(QMainWindow):
         items = widget.selectedItems()
         for item in items:
             widget.takeItem(widget.row(item))
-
-    def removeAll(self):
-        self.dragDropWidget.listWidget.clear()
 
     def parseDuration(self, line):
         """
@@ -303,6 +307,7 @@ class ListDragDropWidget(QWidget):
         self.layout = QVBoxLayout(self)
 
         self.listWidget = QListWidget()
+        self.listWidget.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.dragAndDropLabel = QLabel("Drop file(s) here")
         self.dragAndDropLabel.setAlignment(Qt.AlignCenter)
         self.dragAndDropLabel.setStyleSheet("""
