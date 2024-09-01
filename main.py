@@ -27,6 +27,10 @@
     This project is currently a work in progress, although even in its current
     state its quite usable.
     --- To-do log ---
+    TODO: Remove filename from the QListWidget once the compression is finished
+    TODO: Consider rearchitecting to MVC using QAbstractListModel etc.
+        TODO: Reimplement data source as a queue from which the elemnts are popped
+    TODO: If there's a selection present, convert only the selected files
     TODO: Extract ffmpeg-related code to ffmpeg.py and handle things there
     TODO: Clean-up the code, ensure consistent style
     TODO: Add type-annotations
@@ -40,7 +44,6 @@
     TODO: Allow for customization of the conversion settings
     TODO: Allow for output suffix customization
     TODO: Make convert button bigger or coloured so that its easier to find
-    TODO: Consider rearchitecting to MVC using QAbstractListModel etc.
     TODO: Make a git hook for linting
     TODO: Figure out how to do stylesheets properly
     TODO: Learn how to and create Unit and Integration tests
@@ -72,7 +75,7 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QAbstractItemView
 )
-from PySide6.QtCore import Qt, Slot, QProcess
+from PySide6.QtCore import Qt, Slot, QProcess, Signal
 from PySide6.QtGui import QKeySequence
 
 # Source: https://stackoverflow.com/questions/7674790/bundling-data-files-with-pyinstaller-onefile/44352931#44352931
@@ -155,6 +158,7 @@ class MainWindow(QMainWindow):
         buttonLayout = QHBoxLayout()
 
         self.dragDropWidget = ListDragDropWidget()
+        self.dragDropWidget.dropped.connect(self.startNextProcess)
 
         pageLayout.addWidget(self.dragDropWidget)
 
@@ -298,6 +302,9 @@ class MainWindow(QMainWindow):
 
 
 class ListDragDropWidget(QWidget):
+
+    dropped = Signal()
+
     def __init__(self):
         super().__init__()
 
@@ -340,6 +347,7 @@ class ListDragDropWidget(QWidget):
         self.layout.replaceWidget(self.dragAndDropLabel, self.listWidget)
         self.dragAndDropLabel.hide()
         self.listWidget.show()
+        self.dropped.emit()
 
 def process_cli_args() -> Tuple[argparse.ArgumentParser, List[str]]:
     """
