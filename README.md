@@ -1,11 +1,10 @@
 # Compressly
-Compress your videos with a simple drag and drop.
+**Compressly** is a GUI app built with PySide6 (Qt python bindings) and uses FFmpeg to compresses your videos using SVT-AV1 codec to minimize the size of your videos.
 
 ![Demo image](demo.png)
 
-# General
-Compressly is a GUI app built with PySide6 (Qt python bindings) and uses FFmpeg to compresses your videos using SVT-AV1 codec to minimize the size of your videos.
-
+- Supported OS: Windows
+- Planned support: MacOS
 
 # Licensing and Third-Party Software
 This software uses several third-party libraries under different open-source licenses.
