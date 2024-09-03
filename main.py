@@ -27,10 +27,18 @@
     This project is currently a work in progress, although even in its current
     state its quite usable.
     --- To-do log ---
+    TODO: To ensure a single code-base for the packaging procedure, create a
+          python script to invoke pyinstaller, copy licenses, create a license
+          file and package everything into a zip file.
     TODO: Remove filename from the QListWidget once the compression is finished
     TODO: Consider rearchitecting to MVC using QAbstractListModel etc.
         TODO: Reimplement data source as a queue from which the elemnts are popped
+    TODO: Ensure that only supported files can be dragged/dropped
+    TODO: Create a list of supported formats and use it for filtering in both
+          file dialog, as well as drag and drop.
+    TODO: If some drag-drop fails due to unmet conditions, report that to the user
     TODO: If there's a selection present, convert only the selected files
+    TODO: Apply appropriate green styling to QListWidget for selected items
     TODO: Extract ffmpeg-related code to ffmpeg.py and handle things there
     TODO: Clean-up the code, ensure consistent style
     TODO: Add type-annotations
@@ -80,7 +88,7 @@ from PySide6.QtGui import QKeySequence
 
 # Source: https://stackoverflow.com/questions/7674790/bundling-data-files-with-pyinstaller-onefile/44352931#44352931
 def resourcePath(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
+    """ Get absolute path to resource, needed by PyInstaller """
     base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
@@ -154,14 +162,16 @@ class MainWindow(QMainWindow):
         self.args = args
         self.setWindowTitle("Compressly")
 
+        # Create layouts
         pageLayout = QVBoxLayout()
         buttonLayout = QHBoxLayout()
 
+        # Create Drag and Drop Widget, connnect to launch conversion on drop
         self.dragDropWidget = ListDragDropWidget()
         self.dragDropWidget.dropped.connect(self.startNextProcess)
-
         pageLayout.addWidget(self.dragDropWidget)
 
+        # Create a progress bar
         self.progress = QProgressBar()
         self.progress.setRange(0, 100)
         self.progress.setStyleSheet("""
@@ -170,35 +180,44 @@ class MainWindow(QMainWindow):
         """)
         pageLayout.addWidget(self.progress)
 
+        # Add button layout before output folder selection
         pageLayout.addLayout(buttonLayout)
 
+        # Create folder selection widget
         self.folderSelectionWidget = FolderSelectionWidget()
         pageLayout.addWidget(self.folderSelectionWidget)
 
-        button = QPushButton("Add")
-        button.pressed.connect(self.browseFiles)
-        button.setShortcut(QKeySequence("A"))
-        buttonLayout.addWidget(button)
-
+        # Create a file dialog for adding new files to the list
         self.dialog = QFileDialog(self)
         self.dialog.setFileMode(QFileDialog.ExistingFiles)
         self.dialog.setWindowTitle('Select videos')
         self.dialog.setNameFilter("Video files *.mov *.mp4")
         self.dialog.finished.connect(self.filesSelected)
 
+        # Create manipulation buttons for QListWidget
+        button = QPushButton("Add")
+        button.pressed.connect(self.dialog.open)
+        button.setShortcut(QKeySequence("A"))
+        buttonLayout.addWidget(button)
+
+        # Create a button for removing elements from the list
         button = QPushButton("Remove")
-        button.pressed.connect(self.remove)
+        button.pressed.connect(self.removeSelectedEntries)
         button.setShortcut(QKeySequence("Delete"))
         buttonLayout.addWidget(button)
 
+        # Create an FFmpeg process that will handle video conversions
         self.ffmpeg = QProcess()
         self.ffmpeg.setProgram(resourcePath("external/ffmpeg/ffmpeg.exe"))
         self.ffmpeg.finished.connect(self.ffmpegFinished)
         self.ffmpeg.readyReadStandardOutput.connect(self.ffmpegStdOut)
         self.ffmpeg.readyReadStandardError.connect(self.ffmpegStdErr)
+
+        # Index of the first item on the list to be converted
         self.currentIndex = 0
 
-        button = QPushButton("Convert")
+        # Create button for starting the compression process
+        button = QPushButton("Compress")
         button.pressed.connect(self.startProcesses)
         button.setShortcut(QKeySequence("Return"))
         buttonLayout.addWidget(button)
@@ -207,15 +226,12 @@ class MainWindow(QMainWindow):
         widget.setLayout(pageLayout)
         self.setCentralWidget(widget)
 
-    def browseFiles(self):
-        self.dialog.open()
-
     @Slot(QDialog.DialogCode)
     def filesSelected(self, result: QDialog.DialogCode) -> None:
         if result == QDialog.Accepted:
             self.dragDropWidget.listWidget.addItems(self.dialog.selectedFiles())
 
-    def remove(self):
+    def removeSelectedEntries(self) -> None:
         widget = self.dragDropWidget.listWidget
         items = widget.selectedItems()
         for item in items:
@@ -270,7 +286,7 @@ class MainWindow(QMainWindow):
             log.info(stdout)
 
     def ffmpegFinished(self):
-        self.progress.setValue(100)
+        self.progress.setValue(self.progress.maximum())
         self.currentIndex += 1
         self.startNextProcess()
         log.info("Finished compressing file.")
@@ -297,12 +313,11 @@ class MainWindow(QMainWindow):
             newFilename = self.makeFilename(item)
             self.ffmpeg.setArguments(["-i", item.text(), "-c:v", "libsvtav1", newFilename, "-y"])
             # Start the process
-            self.ffmpeg.start()
             self.total_duration = None
+            self.ffmpeg.start()
 
 
 class ListDragDropWidget(QWidget):
-
     dropped = Signal()
 
     def __init__(self):
