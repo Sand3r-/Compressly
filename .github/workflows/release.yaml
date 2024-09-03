@@ -1,0 +1,48 @@
+name: Packaging
+
+on:
+  push:
+    tags:
+      - '*'  # This triggers the workflow for any tag creation
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout the code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Packaging
+      run: |
+        python packaging\package.py "Compressly-${{ github.ref_name }}-win64.zip"
+
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: Release ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./Compressly-${{ github.ref_name }}-win64.zip
+        asset_name: Compressly-${{ github.ref_name }}-win64.zip
+        asset_content_type: application/zip
