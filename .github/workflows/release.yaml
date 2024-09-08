@@ -6,7 +6,7 @@ on:
       - '*'  # This triggers the workflow for any tag creation
 
 jobs:
-  build:
+  packaging:
     runs-on: windows-latest
     permissions: write-all
 
