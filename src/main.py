@@ -27,6 +27,7 @@
     This project is currently a work in progress, although even in its current
     state its quite usable.
     --- To-do log ---
+    TODO: Create e2e tests for testing packaged application and from python as well
     TODO: Remove filename from the QListWidget once the compression is finished
     TODO: Consider rearchitecting to MVC using QAbstractListModel etc.
         TODO: Reimplement data source as a queue from which the elemnts are popped
@@ -53,7 +54,7 @@
     TODO: Create a CI for running tests and making sure linting was done
     TODO: Implement QML instead of traditional Qt
 
-    pyinstaller --name "Compressly" --noconsole main.py --add-binary "external/ffmpeg/ffmpeg.exe;external/ffmpeg/" --add-binary "external/ffmpeg/SvtAv1Enc.dll;external/ffmpeg/" --noconfirm
+    pyinstaller --name "Compressly" --noconsole src/main.py --add-binary "external/ffmpeg/ffmpeg.exe;external/ffmpeg/" --add-binary "external/ffmpeg/SvtAv1Enc.dll;external/ffmpeg/" --noconfirm
 """
 
 import logging as log
@@ -142,6 +143,8 @@ def process_cli_args() -> Tuple[argparse.ArgumentParser, List[str]]:
     parser = argparse.ArgumentParser()
     parser.add_argument('-l', '--logging', action='store_true')
     parser.add_argument('-lf', '--logging_ffmpeg', action='store_true')
+    parser.add_argument('-x', '--pos-x', type=int)
+    parser.add_argument('-y', '--pos-y', type=int)
 
     parsed_args, unparsed_args = parser.parse_known_args()
     parsed_args.logging = parsed_args.logging or parsed_args.logging_ffmpeg
@@ -155,6 +158,8 @@ if __name__ == "__main__":
     app = QApplication(unparsed_args)
     app.setStyle('fusion')
     window = MainWindow(parsed_args)
+    if parsed_args.pos_x and parsed_args.pos_y:
+        window.move(parsed_args.pos_x, parsed_args.pos_y)
     window.show()
     app.exec()
 

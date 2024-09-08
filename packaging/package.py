@@ -16,7 +16,7 @@ def run_pyinstaller() -> None:
         "--name",
         "Compressly",
         "--noconsole",
-        "main.py",
+        "src/main.py",
         "--noconfirm"
         ]
     os_name = platform.system()

@@ -14,7 +14,7 @@ class FFmpeg(QObject):
     def __init__(self, logging=False):
         super().__init__()
         self.process = QProcess()
-        self.process.setProgram(resourcePath("external/ffmpeg/ffmpeg.exe"))
+        self.process.setProgram(resourcePath("../external/ffmpeg/ffmpeg.exe"))
         self.process.setProcessChannelMode(QProcess.MergedChannels)
         self.process.finished.connect(self._finished)
         self.process.readyReadStandardOutput.connect(self._handleStdOut)
@@ -33,8 +33,9 @@ class FFmpeg(QObject):
         duration_match = re.search(r"Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})", line)
         if duration_match:
             hours, minutes, seconds, centiseconds = map(int, duration_match.groups())
-            total_duration = hours * 3600 + minutes * 60 + seconds + centiseconds / 100.0
-            return total_duration
+            if minutes <= 59 or seconds <= 59:
+                total_duration = hours * 3600 + minutes * 60 + seconds + centiseconds / 100.0
+                return total_duration
         return None
 
     def _parseProgress(self, line, total_duration):
@@ -44,18 +45,19 @@ class FFmpeg(QObject):
         time_match = re.search(r"time=(\d{2}):(\d{2}):(\d{2})\.(\d{2})", line)
         if time_match:
             hours, minutes, seconds, centiseconds = map(int, time_match.groups())
-            current_time = hours * 3600 + minutes * 60 + seconds + centiseconds / 100.0
-            percentage = (current_time / total_duration) * 100
-            return percentage
+            if minutes <= 59 or seconds <= 59:
+                current_time = hours * 3600 + minutes * 60 + seconds + centiseconds / 100.0
+                percentage = (current_time / total_duration) * 100
+                return percentage
         return None
 
     def _handleStdErr(self):
-        data = self.readAllStandardError()
+        data = self.process.readAllStandardError()
         stderr = bytes(data).decode("utf8")
 
         # Forward FFmpeg output
         if self.logging:
-            log.info(stderr)
+            log.error(stderr)
 
     def _handleStdOut(self):
         data = self.process.readAllStandardOutput()
