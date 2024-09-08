@@ -1,3 +1,4 @@
+import os
 import pytest
 from ffmpeg import FFmpeg
 
@@ -42,3 +43,6 @@ def test_finished():
     ffmpeg.progress.connect(handleProgress)
     ffmpeg.fileFinished.connect(handleFinished)
     ffmpeg._finished()
+
+def test_program_exists():
+    assert os.path.exists(FFmpeg().process.program())
